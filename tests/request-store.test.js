@@ -6,6 +6,7 @@ import {
   STORAGE_KEY,
   appendRequest,
   createRequest,
+  filterRequestsByPriority,
   loadRequests,
   saveRequests,
 } from "../src/request-store.js";
@@ -43,6 +44,7 @@ test("createRequest trims input and adds system fields", () => {
     equipment: "Laptop",
     neededBy: "2026-09-15",
     reason: "Replace a failed field computer.",
+    priority: "Normal",
     createdAt: "2026-08-17T12:00:00.000Z",
   });
 });
@@ -83,4 +85,58 @@ test("loadRequests safely handles damaged stored data", () => {
   storage.setItem(STORAGE_KEY, "not-json");
 
   assert.deepEqual(loadRequests(storage), []);
+});
+
+test("priority filtering preserves records and order, including missing and unknown priorities", () => {
+  const records = ["High", "Low", undefined, "High", "Urgent", "Normal"].map((priority, index) => {
+    const record = { ...createRequest(validInput, { id: String(index) }), extraField: "preserve me" };
+    if (priority === undefined) delete record.priority;
+    else record.priority = priority;
+    return record;
+  });
+  const storage = new MemoryStorage();
+  saveRequests(records, storage);
+  const before = storage.getItem(STORAGE_KEY);
+  const loaded = loadRequests(storage);
+
+  for (const priority of ["Low", "Normal", "High"]) {
+    const result = filterRequestsByPriority(loaded, priority);
+    assert.deepEqual(result.map(({ id }) => id), records.filter((r) => r.priority === priority).map(({ id }) => id));
+  }
+  assert.deepEqual(filterRequestsByPriority(loaded), records);
+  assert.deepEqual(filterRequestsByPriority(loaded, "All"), records);
+  assert.equal(storage.getItem(STORAGE_KEY), before);
+  assert.deepEqual(loadRequests(storage), records);
+});
+
+test("priority matching ignores dates and returns an empty list for no matches", () => {
+  const records = [
+    { id: "low", priority: "Low", neededBy: "2026-01-01" },
+    { id: "high", priority: "High", neededBy: "2027-01-01" },
+  ];
+  assert.deepEqual(filterRequestsByPriority(records, "High").map((r) => r.id), ["high"]);
+  records[0].neededBy = "2028-01-01";
+  records[1].neededBy = "2025-01-01";
+  assert.deepEqual(filterRequestsByPriority(records, "High").map((r) => r.id), ["high"]);
+  assert.deepEqual(filterRequestsByPriority(records, "Normal"), []);
+});
+
+test("new requests save each supported priority and default to Normal", () => {
+  const storage = new MemoryStorage();
+  for (const priority of ["Low", "Normal", "High"]) {
+    const request = createRequest({ ...validInput, priority });
+    saveRequests([request], storage);
+    assert.equal(loadRequests(storage)[0].priority, priority);
+  }
+  assert.equal(createRequest(validInput).priority, "Normal");
+});
+
+test("new requests reject invalid priorities without changing legacy record loading", () => {
+  for (const priority of ["", "Urgent", "high"]) {
+    assert.throws(() => createRequest({ ...validInput, priority }), (error) => {
+      assert.ok(error instanceof RequestValidationError);
+      assert.deepEqual(Object.keys(error.errors), ["priority"]);
+      return true;
+    });
+  }
 });
