@@ -67,6 +67,15 @@
           </div>
 
           <div class="field">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority" required>
+              <option>Low</option>
+              <option selected>Normal</option>
+              <option>High</option>
+            </select>
+          </div>
+
+          <div class="field">
             <label for="reason">Business reason</label>
             <textarea
               id="reason"
@@ -91,8 +100,20 @@
             <p class="step-label">Current workload</p>
             <h2 id="request-list-title">Equipment requests</h2>
           </div>
-          <p id="request-count" class="request-count">0 requests</p>
+          <p id="request-count" class="request-count" role="status" aria-live="polite">0 requests</p>
         </div>
+
+        <div class="field">
+          <label for="priority-filter">Filter by priority</label>
+          <select id="priority-filter">
+            <option>All</option>
+            <option>Low</option>
+            <option>Normal</option>
+            <option>High</option>
+          </select>
+        </div>
+
+        <p id="no-priority-matches" role="status" hidden>No requests found for this priority.</p>
 
         <div id="empty-state" class="empty-state">
           <h3>No requests yet</h3>

@@ -20,6 +20,9 @@ export function validateRequest(input = {}) {
   if (!clean(input.equipment)) errors.equipment = "Enter the equipment needed.";
   if (!clean(input.neededBy)) errors.neededBy = "Select the date needed.";
   if (!clean(input.reason)) errors.reason = "Enter a business reason.";
+  if (!["Low", "Normal", "High"].includes(input.priority ?? "Normal")) {
+    errors.priority = "Select Low, Normal, or High.";
+  }
 
   return errors;
 }
@@ -44,12 +47,19 @@ export function createRequest(input, options = {}) {
     equipment: clean(input.equipment),
     neededBy: clean(input.neededBy),
     reason: clean(input.reason),
+    priority: input.priority ?? "Normal",
     createdAt: now.toISOString(),
   };
 }
 
 export function appendRequest(requests, request) {
   return [request, ...requests];
+}
+
+export function filterRequestsByPriority(requests, priority = "All") {
+  return priority === "All"
+    ? [...requests]
+    : requests.filter((request) => request.priority === priority);
 }
 
 export function loadRequests(storage = globalThis.localStorage) {
